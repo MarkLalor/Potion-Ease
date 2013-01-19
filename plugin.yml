@@ -1,6 +1,10 @@
 name: PotionEase
 main: com.cowboys.potionease.PotionEase
 author: Cowboys1919
-version: 1.0
-softdepend: [Factions]
+version: 1.1
+softdepend: [Factions, WorldGuard]
 description: Never open the brewing stand again, simplify brewing with left clicking.
+permissions:
+  potionease.normal:
+    description: Can use potionease.
+    default: true

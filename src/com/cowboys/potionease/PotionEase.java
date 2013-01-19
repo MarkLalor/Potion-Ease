@@ -1,7 +1,5 @@
 package com.cowboys.potionease;
 
-import java.util.ArrayList;
-
 import org.bukkit.Bukkit;
 import org.bukkit.Effect;
 import org.bukkit.Material;
@@ -19,42 +17,24 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.massivecraft.factions.P;
 import com.massivecraft.factions.listeners.FactionsPlayerListener;
+import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 
 
 public class PotionEase extends JavaPlugin implements Listener
 {
-	public P factions=null;
-	public boolean hasFactions=false;
-	public ArrayList<Material> ingredients;
+	public P factions = null;
+	public WorldGuardPlugin worldguard = null;
+	public static final int[] ingredients = { 372,377,353,378,348,331,375,376,396,370,382,289 };
 	
 	public void onEnable() 
 	{ 
+		
 		//Register events
 		getServer().getPluginManager().registerEvents(this, this);
 		
 		//Get factions plugin if it exists.
-		factions = getFactions();
-		if (factions != null)
-			hasFactions = true;
-		
-		//All the brewing ingredients.
-		ingredients = new ArrayList<Material>();
-		ingredients.add(Material.NETHER_STALK);
-		ingredients.add(Material.BLAZE_POWDER);
-		ingredients.add(Material.SUGAR);
-		ingredients.add(Material.MAGMA_CREAM);
-		ingredients.add(Material.GLOWSTONE_DUST);
-		ingredients.add(Material.REDSTONE);
-		ingredients.add(Material.SPIDER_EYE);
-		ingredients.add(Material.FERMENTED_SPIDER_EYE);
-		ingredients.add(Material.GOLDEN_CARROT);
-		ingredients.add(Material.GHAST_TEAR);
-		ingredients.add(Material.SPECKLED_MELON);
-		ingredients.add(Material.SULPHUR);
-	}
-	private P getFactions() 
-	{
-		return (P) Bukkit.getServer().getPluginManager().getPlugin("Factions");
+		factions =  (P) Bukkit.getServer().getPluginManager().getPlugin("Factions");
+		worldguard = (WorldGuardPlugin) Bukkit.getServer().getPluginManager().getPlugin("WorldGuard");
 	}
 	
 	//Item moving, where all the magic happens ;)
@@ -107,6 +87,7 @@ public class PotionEase extends JavaPlugin implements Listener
 				if (potionPosition != -1)
 				{
 					ItemStack item = p.getInventory().getItem(potionPosition);
+					
 					if (item != null)
 					{
 						if (isWaterPotion(item))
@@ -122,9 +103,9 @@ public class PotionEase extends JavaPlugin implements Listener
 			}
 		}
 	}
-	public static void transferIngredientToStand(Player p, BrewingStand stand, Material mat)
+	public static void transferIngredientToStand(Player p, BrewingStand stand, int material)
 	{
-		ItemStack m = new ItemStack(mat, 1);
+		ItemStack m = new ItemStack(material, 1);
 		BrewerInventory i = stand.getInventory();
 		
 		if (i.getIngredient() == null && p.getInventory().contains(m.getType()))
@@ -138,27 +119,38 @@ public class PotionEase extends JavaPlugin implements Listener
 	@EventHandler
 	public void onPlayerInteract(PlayerInteractEvent e)
 	{
-		//Hit a brewing stand
+		//Hit a brewing stand.
 		if (e.getAction() == Action.LEFT_CLICK_BLOCK && e.getClickedBlock().getType() == Material.BREWING_STAND)
 		{
-			if (hasFactions)
+			//Factions check.
+			if (factions != null)
 				if (!FactionsPlayerListener.canPlayerUseBlock(e.getPlayer(), e.getClickedBlock(), true))
 					return;
+			//WorldGuard check.
+			if (worldguard != null)
+				if (!worldguard.canBuild(e.getPlayer(), e.getClickedBlock()))
+					return;
+			//Permission check
+			if (!e.getPlayer().hasPermission("potionease.normal"))
+				return;
 			
-			//Get brewing stand
+			
+			//Get brewing stand.
 			BrewingStand stand = (BrewingStand) e.getClickedBlock().getState();
 			
 			//If clicked with a water potion, transfer to stand.
 			if (isWaterPotion(e.getPlayer().getItemInHand()))
 			{
+				//Transfers water bottlse to stand untill full.
 				transferToStand(e.getPlayer(), stand);
 				return;
 			}
 			
 			//If clicked with an ingredient, transfer the ingredient to stand.
-			for (Material m : ingredients)
-				if (e.getPlayer().getItemInHand().getType() == m)
+			for (int m : ingredients)
+				if (e.getPlayer().getItemInHand().getTypeId() == m)
 				{
+					//Transfers the ingredient in the players hand into the stand.
 					transferIngredientToStand(e.getPlayer(), stand, m);
 					return;
 				}
@@ -166,6 +158,7 @@ public class PotionEase extends JavaPlugin implements Listener
 			//If clicked with thier hand, transfer to player.
 			if (e.getPlayer().getItemInHand().getType() == Material.AIR)
 			{
+				//Transfers items into players inventory until full.
 				transferToPlayer(e.getPlayer(), stand);
 				return;
 			}
@@ -191,7 +184,8 @@ public class PotionEase extends JavaPlugin implements Listener
 		return -1;
 	}
 	
-	//Misc
+	//Get's first empty starting from the BACK of the players inventory, allowing them to keep
+	//Nothing in thier hand to click more brewing stands.
 	public static int firstEmptyFirstSlotLast(PlayerInventory p)
 	{
 		for (int c = 1;c<=36;c++)
@@ -204,5 +198,4 @@ public class PotionEase extends JavaPlugin implements Listener
 		}
 		return -1;
 	}
-	
 }
